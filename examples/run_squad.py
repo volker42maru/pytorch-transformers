@@ -136,10 +136,12 @@ def train(args, train_dataset, model, tokenizer):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {'input_ids':       batch[0],
-                      'attention_mask':  batch[1], 
-                      #'token_type_ids':  None if args.model_type == 'xlm' else batch[2],
+                      'attention_mask':  batch[1],
                       'start_positions': batch[3], 
                       'end_positions':   batch[4]}
+            if args.model_type != 'distil_bert':
+                # XLM don't use segment_ids
+                inputs.update({'token_type_ids': None if args.model_type == 'xlm' else batch[2]})
             if args.model_type in ['xlnet', 'xlm']:
                 inputs.update({'cls_index': batch[5],
                                'p_mask':       batch[6]})
@@ -220,9 +222,11 @@ def evaluate(args, model, tokenizer, prefix=""):
         batch = tuple(t.to(args.device) for t in batch)
         with torch.no_grad():
             inputs = {'input_ids':      batch[0],
-                      'attention_mask': batch[1],
-                      #'token_type_ids': None if args.model_type == 'xlm' else batch[2]  # XLM don't use segment_ids
+                      'attention_mask': batch[1]
                       }
+            if args.model_type != 'distil_bert':
+                # XLM don't use segment_ids
+                inputs.update({'token_type_ids': None if args.model_type == 'xlm' else batch[2]})
             example_indices = batch[3]
             if args.model_type in ['xlnet', 'xlm']:
                 inputs.update({'cls_index': batch[4],

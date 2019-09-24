@@ -20,7 +20,9 @@ import argparse
 import torch
 import numpy as np
 import tensorflow as tf
-from pytorch_transformers import BertModel
+from pytorch_transformers import BertModel, BertConfig, BertForQuestionAnswering, \
+    DistilBertModel, DistilBertConfig, DistilBertForQuestionAnswering, \
+    RobertaModel, RobertaConfig, RobertaForQuestionAnswering
 
 
 def convert_pytorch_checkpoint_to_tf(model:BertModel, ckpt_dir:str, model_name:str):
@@ -45,7 +47,8 @@ def convert_pytorch_checkpoint_to_tf(model:BertModel, ckpt_dir:str, model_name:s
         "dense.weight",
         "attention.self.query",
         "attention.self.key",
-        "attention.self.value"
+        "attention.self.value",
+        "ffn.lin"
     )
 
     var_map = (
@@ -56,7 +59,22 @@ def convert_pytorch_checkpoint_to_tf(model:BertModel, ckpt_dir:str, model_name:s
         ('.', '/'),
         ('LayerNorm/weight', 'LayerNorm/gamma'),
         ('LayerNorm/bias', 'LayerNorm/beta'),
-        ('weight', 'kernel')
+        ('weight', 'kernel'),
+        ('transformer', 'encoder'),
+        ('q_lin', 'self/query'),
+        ('k_lin', 'self/key'),
+        ('v_lin', 'self/value'),
+        ('out_lin', 'output/dense'),
+        ('output_layer_norm/kernel', 'output/LayerNorm/gamma'),
+        ('output_layer_norm/bias', 'output/LayerNorm/beta'),
+        ('sa_layer_norm/kernel', 'attention/output/LayerNorm/gamma'),
+        ('sa_layer_norm/bias', 'attention/output/LayerNorm/beta'),
+        ('ffn/lin1', 'intermediate/dense'),
+        ('ffn/lin2', 'output/dense'),
+        ('qa_outputs/kernel', 'cls/squad/output_weights'),
+        ('qa_outputs/bias', 'cls/squad/output_bias'),
+        ('distilbert/', ''),
+        ('roberta/', ''),
     )
 
     if not os.path.isdir(ckpt_dir):
@@ -67,7 +85,7 @@ def convert_pytorch_checkpoint_to_tf(model:BertModel, ckpt_dir:str, model_name:s
     def to_tf_var_name(name:str):
         for patt, repl in iter(var_map):
             name = name.replace(patt, repl)
-        return 'bert/{}'.format(name)
+        return '{}'.format(name) if 'squad' in name else 'bert/{}'.format(name)
 
     def create_tf_var(tensor:np.ndarray, name:str, session:tf.Session):
         tf_dtype = tf.dtypes.as_dtype(tensor.dtype)
@@ -86,14 +104,30 @@ def convert_pytorch_checkpoint_to_tf(model:BertModel, ckpt_dir:str, model_name:s
             tf_var = create_tf_var(tensor=torch_tensor, name=tf_name, session=session)
             tf.keras.backend.set_value(tf_var, torch_tensor)
             tf_weight = session.run(tf_var)
+            # print(tf_var)
+            print("Pytorch var name: {}".format(var_name))
             print("Successfully created {}: {}".format(tf_name, np.allclose(tf_weight, torch_tensor)))
+            output_var = tf_name
+
+        from tensorflow.python.tools import freeze_graph
+        graph_file = os.path.join(ckpt_dir, 'model.graph')
+        # tmp_g = tf.get_default_graph().as_graph_def()
+        tmp_g = session.graph_def
+        tmp_g = tf.graph_util.convert_variables_to_constants(session, tmp_g, [output_var])
+        with tf.gfile.GFile(graph_file, 'wb') as f:
+            f.write(tmp_g.SerializeToString())
 
         saver = tf.train.Saver(tf.trainable_variables())
         saver.save(session, os.path.join(ckpt_dir, model_name.replace("-", "_") + ".ckpt"))
 
 
+
 def main(raw_args=None):
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model_type",
+                        type=str,
+                        required=True,
+                        help="model type e.g. bert, distil_bert")
     parser.add_argument("--model_name",
                         type=str,
                         required=True,
@@ -112,13 +146,27 @@ def main(raw_args=None):
                         required=True,
                         help="Directory in which to save tensorflow model")
     args = parser.parse_args(raw_args)
-    
-    model = BertModel.from_pretrained(
-        pretrained_model_name_or_path=args.model_name,
-        state_dict=torch.load(args.pytorch_model_path),
-        cache_dir=args.cache_dir
-    )
-    
+
+    type_to_model = {'bert': (BertModel, BertConfig),
+                     'bert_qa': (BertForQuestionAnswering, BertConfig),
+                     'distil_bert': (DistilBertModel, DistilBertConfig),
+                     'distil_bert_qa': (DistilBertForQuestionAnswering, DistilBertConfig),
+                     'roberta': (RobertaModel, RobertaConfig),
+                     'roberta_qa': (RobertaForQuestionAnswering, RobertaConfig)}
+
+    model, config = type_to_model[args.model_type]
+
+    # model = model.from_pretrained(
+    #     pretrained_model_name_or_path=args.model_name,
+    #     state_dict=torch.load(args.pytorch_model_path),
+    #     cache_dir=args.cache_dir
+    # )
+
+    # config_path = os.path.join(args.cache_dir, 'config.json')
+    config = config.from_pretrained(args.cache_dir)
+    model = model.from_pretrained(args.cache_dir, config=config)
+    # model = model.from_pretrained(args.model_name)
+
     convert_pytorch_checkpoint_to_tf(
         model=model,
         ckpt_dir=args.tf_cache_dir,
