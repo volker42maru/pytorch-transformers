@@ -85,7 +85,7 @@ def convert_pytorch_checkpoint_to_tf(model:BertModel, ckpt_dir:str, model_name:s
     def to_tf_var_name(name:str):
         for patt, repl in iter(var_map):
             name = name.replace(patt, repl)
-        return '{}'.format(name) if 'squad' in name else 'bert/{}'.format(name)
+        return '{}'.format(name) #if 'squad' in name else 'bert/{}'.format(name)
 
     def create_tf_var(tensor:np.ndarray, name:str, session:tf.Session):
         tf_dtype = tf.dtypes.as_dtype(tensor.dtype)
