@@ -1,357 +1,109 @@
 # Examples
 
-In this section a few examples are put together. All of these examples work for several models, making use of the very
-similar API between the different models.
+Version 2.9 of 🤗 Transformers introduces a new [`Trainer`](https://github.com/huggingface/transformers/blob/master/src/transformers/trainer.py) class for PyTorch, and its equivalent [`TFTrainer`](https://github.com/huggingface/transformers/blob/master/src/transformers/trainer_tf.py) for TF 2.
+Running the examples requires PyTorch 1.3.1+ or TensorFlow 2.1+.
 
-| Section                    | Description                                                                                                                                                |
-|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Language Model fine-tuning](#language-model-fine-tuning) | Fine-tuning the library models for language modeling on a text dataset. Causal language modeling for GPT/GPT-2, masked language modeling for BERT/RoBERTa. |
-| [Language Generation](#language-generation) | Conditional text generation using the auto-regressive models of the library: GPT, GPT-2, Transformer-XL and XLNet.                                         |
-| [GLUE](#glue) | Examples running BERT/XLM/XLNet/RoBERTa on the 9 GLUE tasks. Examples feature distributed training as well as half-precision.                              |
-| [SQuAD](#squad) | Using BERT for question answering, examples with distributed training.                                                                                     |
+Here is the list of all our examples:
+- **grouped by task** (all official examples work for multiple models)
+- with information on whether they are **built on top of `Trainer`/`TFTrainer`** (if not, they still work, they might just lack some features),
+- whether they also include examples for **`pytorch-lightning`**, which is a great fully-featured, general-purpose training library for PyTorch,
+- links to **Colab notebooks** to walk through the scripts and run them easily,
+- links to **Cloud deployments** to be able to deploy large-scale trainings in the Cloud with little to no setup.
 
-## Language model fine-tuning
+This is still a work-in-progress – in particular documentation is still sparse – so please **contribute improvements/pull requests.**
 
-Based on the script [`run_lm_finetuning.py`](https://github.com/huggingface/pytorch-transformers/blob/master/examples/run_lm_finetuning.py).
 
-Fine-tuning the library models for language modeling on a text dataset for GPT, GPT-2, BERT and RoBERTa (DistilBERT 
-to be added soon). GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa 
-are fine-tuned using a masked language modeling (MLM) loss.
+## The Big Table of Tasks
 
-Before running the following example, you should get a file that contains text on which the language model will be
-fine-tuned. A good example of such text is the [WikiText-2 dataset](https://blog.einstein.ai/the-wikitext-long-term-dependency-language-modeling-dataset/).
+| Task | Example datasets | Trainer support | TFTrainer support | pytorch-lightning | Colab
+|---|---|:---:|:---:|:---:|:---:|
+| [**`language-modeling`**](https://github.com/huggingface/transformers/tree/master/examples/language-modeling)       | Raw text        | ✅ | -  | -  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/01_how_to_train.ipynb)
+| [**`text-classification`**](https://github.com/huggingface/transformers/tree/master/examples/text-classification)   | GLUE, XNLI      | ✅ | ✅ | ✅ | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/trainer/01_text_classification.ipynb)
+| [**`token-classification`**](https://github.com/huggingface/transformers/tree/master/examples/token-classification) | CoNLL NER       | ✅ | ✅ | ✅ | -
+| [**`multiple-choice`**](https://github.com/huggingface/transformers/tree/master/examples/multiple-choice)           | SWAG, RACE, ARC | ✅ | ✅ | -  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ViktorAlm/notebooks/blob/master/MPC_GPU_Demo_for_TF_and_PT.ipynb)
+| [**`question-answering`**](https://github.com/huggingface/transformers/tree/master/examples/question-answering)     | SQuAD           | ✅ | ✅ | -  | -
+| [**`text-generation`**](https://github.com/huggingface/transformers/tree/master/examples/text-generation)           | -               | n/a | n/a | n/a | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/02_how_to_generate.ipynb)
+| [**`distillation`**](https://github.com/huggingface/transformers/tree/master/examples/distillation)       | All               | -  | -  | -  | -
+| [**`summarization`**](https://github.com/huggingface/transformers/tree/master/examples/seq2seq)     | CNN/Daily Mail    | -  | -  | ✅  | -
+| [**`translation`**](https://github.com/huggingface/transformers/tree/master/examples/seq2seq)         | WMT               | -  | -  | ✅  | -
+| [**`bertology`**](https://github.com/huggingface/transformers/tree/master/examples/bertology)             | -                 | -  | -  | -  | -
+| [**`adversarial`**](https://github.com/huggingface/transformers/tree/master/examples/adversarial)         | HANS              | ✅ | -  | -  | -
 
-We will refer to two different files: `$TRAIN_FILE`, which contains text for training, and `$TEST_FILE`, which contains
-text that will be used for evaluation.
 
-### GPT-2/GPT and causal language modeling
+<br>
 
-The following example fine-tunes GPT-2 on WikiText-2. We're using the raw WikiText-2 (no tokens were replaced before
-the tokenization). The loss here is that of causal language modeling.
+## Important note
 
-```bash
-export TRAIN_FILE=/path/to/dataset/wiki.train.raw
-export TEST_FILE=/path/to/dataset/wiki.test.raw
-
-python run_lm_finetuning.py \
-    --output_dir=output \
-    --model_type=gpt2 \
-    --model_name_or_path=gpt2 \
-    --do_train \
-    --train_data_file=$TRAIN_FILE \
-    --do_eval \
-    --eval_data_file=$TEST_FILE
-```
-
-This takes about half an hour to train on a single K80 GPU and about one minute for the evaluation to run. It reaches
-a score of ~20 perplexity once fine-tuned on the dataset.
-
-### RoBERTa/BERT and masked language modeling
-
-The following example fine-tunes RoBERTa on WikiText-2. Here too, we're using the raw WikiText-2. The loss is different
-as BERT/RoBERTa have a bidirectional mechanism; we're therefore using the same loss that was used during their
-pre-training: masked language modeling. 
-
-In accordance to the RoBERTa paper, we use dynamic masking rather than static masking. The model may, therefore, converge
-slightly slower (over-fitting takes more epochs).
-
-We use the `--mlm` flag so that the script may change its loss function.
+**Important**
+To make sure you can successfully run the latest versions of the example scripts, you have to install the library from source and install some example-specific requirements.
+Execute the following steps in a new virtual environment:
 
 ```bash
-export TRAIN_FILE=/path/to/dataset/wiki.train.raw
-export TEST_FILE=/path/to/dataset/wiki.test.raw
-
-python run_lm_finetuning.py \
-    --output_dir=output \
-    --model_type=roberta \
-    --model_name_or_path=roberta-base \
-    --do_train \
-    --train_data_file=$TRAIN_FILE \
-    --do_eval \
-    --eval_data_file=$TEST_FILE \
-    --mlm
+git clone https://github.com/huggingface/transformers
+cd transformers
+pip install .
+pip install -r ./examples/requirements.txt
 ```
 
-## Language generation
+## One-click Deploy to Cloud (wip)
 
-Based on the script [`run_generation.py`](https://github.com/huggingface/pytorch-transformers/blob/master/examples/run_generation.py).
+#### Azure
 
-Conditional text generation using the auto-regressive models of the library: GPT, GPT-2, Transformer-XL and XLNet.
-A similar script is used for our official demo [Write With Transfomer](https://transformer.huggingface.co), where you
-can try out the different models available in the library.
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2Fazure-quickstart-templates%2Fmaster%2F101-storage-account-create%2Fazuredeploy.json)
 
-Example usage:
+## Running on TPUs
+
+When using Tensorflow, TPUs are supported out of the box as a `tf.distribute.Strategy`.
+
+When using PyTorch, we support TPUs thanks to `pytorch/xla`. For more context and information on how to setup your TPU environment refer to Google's documentation and to the
+very detailed [pytorch/xla README](https://github.com/pytorch/xla/blob/master/README.md).
+
+In this repo, we provide a very simple launcher script named [xla_spawn.py](https://github.com/huggingface/transformers/tree/master/examples/xla_spawn.py) that lets you run our example scripts on multiple TPU cores without any boilerplate.
+Just pass a `--num_cores` flag to this script, then your regular training script with its arguments (this is similar to the `torch.distributed.launch` helper for torch.distributed).
+
+For example for `run_glue`:
 
 ```bash
-python run_generation.py \
-    --model_type=gpt2 \
-    --model_name_or_path=gpt2
+python examples/xla_spawn.py --num_cores 8 \
+	examples/text-classification/run_glue.py
+	--model_name_or_path bert-base-cased \
+	--task_name mnli \
+	--data_dir ./data/glue_data/MNLI \
+	--output_dir ./models/tpu \
+	--overwrite_output_dir \
+	--do_train \
+	--do_eval \
+	--num_train_epochs 1 \
+	--save_steps 20000
 ```
 
-## GLUE
+Feedback and more use cases and benchmarks involving TPUs are welcome, please share with the community.
 
-Based on the script [`run_glue.py`](https://github.com/huggingface/pytorch-transformers/blob/master/examples/run_glue.py).
+## Logging & Experiment tracking
 
-Fine-tuning the library models for sequence classification on the GLUE benchmark: [General Language Understanding 
-Evaluation](https://gluebenchmark.com/). This script can fine-tune the following models: BERT, XLM, XLNet and RoBERTa. 
+You can easily log and monitor your runs code. [TensorBoard](https://www.tensorflow.org/tensorboard) and [Weights & Biases](https://docs.wandb.com/library/integrations/huggingface) are currently supported.
 
-GLUE is made up of a total of 9 different tasks. We get the following results on the dev set of the benchmark with an
-uncased  BERT base model (the checkpoint `bert-base-uncased`). All experiments ran on 8  V100 GPUs with a total train
-batch size of 24. Some of these tasks have a small dataset and training can lead to high variance in the results
-between different runs. We report the median on 5 runs (with different seeds) for each of the metrics.
-
-| Task  | Metric                       | Result      |
-|-------|------------------------------|-------------|
-| CoLA  | Matthew's corr               | 55.75       |
-| SST-2 | Accuracy                     | 92.09       |
-| MRPC  | F1/Accuracy                  | 90.48/86.27 |
-| STS-B | Person/Spearman corr.        | 89.03/88.64 |
-| QQP   | Accuracy/F1                  | 90.92/87.72 |
-| MNLI  | Matched acc./Mismatched acc. | 83.74/84.06 |
-| QNLI  | Accuracy                     | 91.07       |
-| RTE   | Accuracy                     | 68.59       |
-| WNLI  | Accuracy                     | 43.66       |
-
-Some of these results are significantly different from the ones reported on the test set
-of GLUE benchmark on the website. For QQP and WNLI, please refer to [FAQ #12](https://gluebenchmark.com/faq) on the webite.
-
-Before running anyone of these GLUE tasks you should download the
-[GLUE data](https://gluebenchmark.com/tasks) by running
-[this script](https://gist.github.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e)
-and unpack it to some directory `$GLUE_DIR`.
+To use Weights & Biases, install the wandb package with:
 
 ```bash
-export GLUE_DIR=/path/to/glue
-export TASK_NAME=MRPC
-
-python run_glue.py \
-  --model_type bert \
-  --model_name_or_path bert-base-cased \
-  --task_name $TASK_NAME \
-  --do_train \
-  --do_eval \
-  --do_lower_case \
-  --data_dir $GLUE_DIR/$TASK_NAME \
-  --max_seq_length 128 \
-  --per_gpu_train_batch_size 32 \
-  --learning_rate 2e-5 \
-  --num_train_epochs 3.0 \
-  --output_dir /tmp/$TASK_NAME/
+pip install wandb
 ```
 
-where task name can be one of CoLA, SST-2, MRPC, STS-B, QQP, MNLI, QNLI, RTE, WNLI.
-
-The dev set results will be present within the text file `eval_results.txt` in the specified output_dir. 
-In case of MNLI, since there are two separate dev sets (matched and mismatched), there will be a separate 
-output folder called `/tmp/MNLI-MM/` in addition to `/tmp/MNLI/`.
-
-The code has not been tested with half-precision training with apex on any GLUE task apart from MRPC, MNLI, 
-CoLA, SST-2. The following section provides details on how to run half-precision training with MRPC. With that being 
-said, there shouldn’t be any issues in running half-precision training with the remaining GLUE tasks as well, 
-since the data processor for each task inherits from the base class DataProcessor.
-
-### MRPC
-
-#### Fine-tuning example
-
-The following examples fine-tune BERT on the Microsoft Research Paraphrase Corpus (MRPC) corpus and runs in less 
-than 10 minutes on a single K-80 and in 27 seconds (!) on single tesla V100 16GB with apex installed.
-
-Before running anyone of these GLUE tasks you should download the
-[GLUE data](https://gluebenchmark.com/tasks) by running
-[this script](https://gist.github.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e)
-and unpack it to some directory `$GLUE_DIR`.
+Then log in the command line:
 
 ```bash
-export GLUE_DIR=/path/to/glue
-
-python run_glue.py \
-  --model_type bert \
-  --model_name_or_path bert-base-cased \
-  --task_name MRPC \
-  --do_train \
-  --do_eval \
-  --do_lower_case \
-  --data_dir $GLUE_DIR/MRPC/ \
-  --max_seq_length 128 \
-  --per_gpu_train_batch_size 32 \
-  --learning_rate 2e-5 \
-  --num_train_epochs 3.0 \
-  --output_dir /tmp/mrpc_output/
+wandb login
 ```
 
-Our test ran on a few seeds with [the original implementation hyper-
-parameters](https://github.com/google-research/bert#sentence-and-sentence-pair-classification-tasks) gave evaluation 
-results between 84% and 88%.
+If you are in Jupyter or Colab, you should login with:
 
-#### Using Apex and mixed-precision
-
-Using Apex and 16 bit precision, the fine-tuning on MRPC only takes 27 seconds. First install 
-[apex](https://github.com/NVIDIA/apex), then run the following example:
-
-```bash
-export GLUE_DIR=/path/to/glue
-
-python run_glue.py \
-  --model_type bert \
-  --model_name_or_path bert-base-cased \
-  --task_name MRPC \
-  --do_train \
-  --do_eval \
-  --do_lower_case \
-  --data_dir $GLUE_DIR/MRPC/ \
-  --max_seq_length 128 \
-  --per_gpu_train_batch_size 32 \
-  --learning_rate 2e-5 \
-  --num_train_epochs 3.0 \
-  --output_dir /tmp/mrpc_output/ \
-  --fp16
+```python
+import wandb
+wandb.login()
 ```
 
-#### Distributed training
+Whenever you use `Trainer` or `TFTrainer` classes, your losses, evaluation metrics, model topology and gradients (for `Trainer` only) will automatically be logged.
 
-Here is an example using distributed training on 8 V100 GPUs. The model used is the BERT whole-word-masking and it
-reaches F1 > 92 on MRPC.
+For advanced configuration and examples, refer to the [W&B documentation](https://docs.wandb.com/library/integrations/huggingface).
 
-```bash
-export GLUE_DIR=/path/to/glue
-
-python -m torch.distributed.launch \
-    --nproc_per_node 8 run_glue.py \
-    --model_type bert \
-    --model_name_or_path bert-base-cased \
-    --task_name MRPC \
-    --do_train \
-    --do_eval \
-    --do_lower_case \
-    --data_dir $GLUE_DIR/MRPC/ \
-    --max_seq_length 128 \
-    --per_gpu_train_batch_size 8 \
-    --learning_rate 2e-5 \
-    --num_train_epochs 3.0 \
-    --output_dir /tmp/mrpc_output/
-```
-
-Training with these hyper-parameters gave us the following results:
-
-```bash
-acc = 0.8823529411764706
-acc_and_f1 = 0.901702786377709
-eval_loss = 0.3418912578906332
-f1 = 0.9210526315789473
-global_step = 174
-loss = 0.07231863956341798
-```
-
-### MNLI
-
-The following example uses the BERT-large, uncased, whole-word-masking model and fine-tunes it on the MNLI task.
-
-```bash
-export GLUE_DIR=/path/to/glue
-
-python -m torch.distributed.launch \
-    --nproc_per_node 8 run_glue.py \
-    --model_type bert \
-    --model_name_or_path bert-base-cased \
-    --task_name mnli \
-    --do_train \
-    --do_eval \
-    --do_lower_case \
-    --data_dir $GLUE_DIR/MNLI/ \
-    --max_seq_length 128 \
-    --per_gpu_train_batch_size 8 \
-    --learning_rate 2e-5 \
-    --num_train_epochs 3.0 \
-    --output_dir output_dir \
-```
-
-The results  are the following:
-
-```bash
-***** Eval results *****
-  acc = 0.8679706601466992
-  eval_loss = 0.4911287787382479
-  global_step = 18408
-  loss = 0.04755385363816904
-
-***** Eval results *****
-  acc = 0.8747965825874695
-  eval_loss = 0.45516540421714036
-  global_step = 18408
-  loss = 0.04755385363816904
-```
-
-## SQuAD
-
-Based on the script [`run_squad.py`](https://github.com/huggingface/pytorch-transformers/blob/master/examples/run_squad.py).
-
-#### Fine-tuning on SQuAD
-
-This example code fine-tunes BERT on the SQuAD dataset. It runs in 24 min (with BERT-base) or 68 min (with BERT-large) 
-on a single tesla V100 16GB. The data for SQuAD can be downloaded with the following links and should be saved in a 
-$SQUAD_DIR directory.
-
-* [train-v1.1.json](https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v1.1.json)
-* [dev-v1.1.json](https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v1.1.json)
-* [evaluate-v1.1.py](https://github.com/allenai/bi-att-flow/blob/master/squad/evaluate-v1.1.py)
-
-```bash
-export SQUAD_DIR=/path/to/SQUAD
-
-python run_squad.py \
-  --model_type bert \
-  --model_name_or_path bert-base-cased \
-  --do_train \
-  --do_eval \
-  --do_lower_case \
-  --train_file $SQUAD_DIR/train-v1.1.json \
-  --predict_file $SQUAD_DIR/dev-v1.1.json \
-  --per_gpu_train_batch_size 12 \
-  --learning_rate 3e-5 \
-  --num_train_epochs 2.0 \
-  --max_seq_length 384 \
-  --doc_stride 128 \
-  --output_dir /tmp/debug_squad/
-```
-
-Training with the previously defined hyper-parameters yields the following results:
-
-```bash
-f1 = 88.52
-exact_match = 81.22
-```
-
-#### Distributed training
-
-
-Here is an example using distributed training on 8 V100 GPUs and Bert Whole Word Masking uncased model to reach a F1 > 93 on SQuAD:
-
-```bash
-python -m torch.distributed.launch --nproc_per_node=8 run_squad.py \
-    --model_type bert \
-    --model_name_or_path bert-base-cased \
-    --do_train \
-    --do_eval \
-    --do_lower_case \
-    --train_file $SQUAD_DIR/train-v1.1.json \
-    --predict_file $SQUAD_DIR/dev-v1.1.json \
-    --learning_rate 3e-5 \
-    --num_train_epochs 2 \
-    --max_seq_length 384 \
-    --doc_stride 128 \
-    --output_dir ../models/wwm_uncased_finetuned_squad/ \
-    --per_gpu_train_batch_size 24 \
-    --gradient_accumulation_steps 12
-```
-
-Training with the previously defined hyper-parameters yields the following results:
-
-```bash
-f1 = 93.15
-exact_match = 86.91
-```
-
-This fine-tuneds model is available as a checkpoint under the reference
-`bert-large-uncased-whole-word-masking-finetuned-squad`.
-
+When using 🤗 Transformers with PyTorch Lightning, runs can be tracked through `WandbLogger`. Refer to related [documentation & examples](https://docs.wandb.com/library/frameworks/pytorch/lightning).

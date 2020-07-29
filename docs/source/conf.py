@@ -14,19 +14,19 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../src'))
 
 
 # -- Project information -----------------------------------------------------
 
-project = u'pytorch-transformers'
-copyright = u'2019, huggingface'
+project = u'transformers'
+copyright = u'2020, huggingface'
 author = u'huggingface'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'1.2.0'
+release = u'3.0.2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -44,7 +44,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'recommonmark',
     'sphinx.ext.viewcode',
-    'sphinx_markdown_tables'
+    'sphinx_markdown_tables',
+    'sphinx_copybutton'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -74,6 +75,8 @@ exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
 
+# Remove the prompt when copying examples
+copybutton_prompt_text = ">>> "
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -105,11 +108,17 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
+# This must be the name of an image file (path relative to the configuration 
+# directory) that is the favicon of the docs. Modern browsers use this as 
+# the icon for tabs, windows and bookmarks. It should be a Windows-style 
+# icon file (.ico).
+html_favicon = 'favicon.ico'
+
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'pytorch-transformersdoc'
+htmlhelp_basename = 'transformersdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -136,7 +145,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'pytorch-transformers.tex', u'pytorch-transformers Documentation',
+    (master_doc, 'transformers.tex', u'transformers Documentation',
      u'huggingface', 'manual'),
 ]
 
@@ -146,7 +155,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'pytorch-transformers', u'pytorch-transformers Documentation',
+    (master_doc, 'transformers', u'transformers Documentation',
      [author], 1)
 ]
 
@@ -157,8 +166,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'pytorch-transformers', u'pytorch-transformers Documentation',
-     author, 'pytorch-transformers', 'One line description of project.',
+    (master_doc, 'transformers', u'transformers Documentation',
+     author, 'transformers', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -181,8 +190,8 @@ epub_title = project
 epub_exclude_files = ['search.html']
 
 def setup(app):
-    app.add_stylesheet('css/huggingface.css')
-    app.add_stylesheet('css/code-snippets.css')
+    app.add_css_file('css/huggingface.css')
+    app.add_css_file('css/code-snippets.css')
     app.add_js_file('js/custom.js')
 
 # -- Extension configuration -------------------------------------------------
