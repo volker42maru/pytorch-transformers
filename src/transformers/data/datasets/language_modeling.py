@@ -11,6 +11,7 @@ from ...tokenization_utils import PreTrainedTokenizer
 
 
 logger = logging.getLogger(__name__)
+NLP_PREFIX = 'nlp.'
 
 
 class TextDataset(Dataset):
@@ -20,9 +21,10 @@ class TextDataset(Dataset):
     """
 
     def __init__(
-        self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, overwrite_cache=False,
+        self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, overwrite_cache=False
     ):
-        assert os.path.isfile(file_path)
+        if NLP_PREFIX not in file_path:
+            assert os.path.isfile(file_path)
 
         block_size = block_size - tokenizer.num_special_tokens_to_add(pair=False)
 
@@ -48,8 +50,13 @@ class TextDataset(Dataset):
                 logger.info(f"Creating features from dataset file at {directory}")
 
                 self.examples = []
-                with open(file_path, encoding="utf-8") as f:
-                    text = f.read()
+                if NLP_PREFIX in file_path:
+                    from nlp import load_dataset
+                    dataset_prefix, dataset_name, column, split = file_path[len(NLP_PREFIX):].split('.')
+                    text = "".join(load_dataset(dataset_prefix, dataset_name, split=split)[column])
+                else:
+                    with open(file_path, encoding="utf-8") as f:
+                        text = f.read()
 
                 tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
 
