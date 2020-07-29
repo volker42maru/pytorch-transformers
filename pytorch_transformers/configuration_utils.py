@@ -23,8 +23,6 @@ import json
 import logging
 import os
 from io import open
-import tarfile
-import tempfile
 
 from .file_utils import cached_path, CONFIG_NAME
 
@@ -149,20 +147,6 @@ class PretrainedConfig(object):
         else:
             logger.info("loading configuration file {} from cache at {}".format(
                 config_file, resolved_config_file))
-
-        # tempdir = None
-        # if 'spanbert' in pretrained_model_name_or_path:
-        #     # Extract archive to temp dir
-        #     tempdir = tempfile.mkdtemp()
-        #     logger.info("extracting archive file {} to temp dir {}".format(
-        #         resolved_config_file, tempdir))
-        #     with tarfile.open(resolved_config_file, 'r:gz') as archive:
-        #         archive.extractall(tempdir)
-        #     serialization_dir = tempdir
-        #     resolved_config_file = os.path.join(serialization_dir, CONFIG_NAME)
-
-        # Load config
-        logger.info("Loading config from: {}".format(resolved_config_file))
 
         # Load config
         config = cls.from_json_file(resolved_config_file)

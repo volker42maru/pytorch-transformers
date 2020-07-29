@@ -60,7 +60,6 @@ from .modeling_xlm import (XLMPreTrainedModel , XLMModel,
                            XLMWithLMHeadModel, XLMForSequenceClassification,
                            XLMForQuestionAnswering, XLM_PRETRAINED_MODEL_ARCHIVE_MAP)
 from .modeling_roberta import (RobertaForMaskedLM, RobertaModel, RobertaForSequenceClassification,
-                               RobertaForQuestionAnswering,
                                ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP)
 from .modeling_distilbert import (DistilBertForMaskedLM, DistilBertModel,
                                DistilBertForSequenceClassification, DistilBertForQuestionAnswering,

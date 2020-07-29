@@ -34,9 +34,6 @@ from tensorboardX import SummaryWriter
 
 from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   BertForQuestionAnswering, BertTokenizer,
-                                  DistilBertConfig,
-                                  DistilBertForQuestionAnswering,
-                                  DistilBertTokenizer,
                                   XLMConfig, XLMForQuestionAnswering,
                                   XLMTokenizer, XLNetConfig,
                                   XLNetForQuestionAnswering,
@@ -56,11 +53,10 @@ from utils_squad_evaluate import EVAL_OPTS, main as evaluate_on_squad
 logger = logging.getLogger(__name__)
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) \
-                  for conf in (BertConfig, DistilBertConfig, XLNetConfig, XLMConfig)), ())
+                  for conf in (BertConfig, XLNetConfig, XLMConfig)), ())
 
 MODEL_CLASSES = {
     'bert': (BertConfig, BertForQuestionAnswering, BertTokenizer),
-    'distil_bert': (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
     'xlnet': (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
     'xlm': (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
 }
@@ -136,12 +132,10 @@ def train(args, train_dataset, model, tokenizer):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {'input_ids':       batch[0],
-                      'attention_mask':  batch[1],
+                      'attention_mask':  batch[1], 
+                      'token_type_ids':  None if args.model_type == 'xlm' else batch[2],  
                       'start_positions': batch[3], 
                       'end_positions':   batch[4]}
-            if args.model_type != 'distil_bert':
-                # XLM don't use segment_ids
-                inputs.update({'token_type_ids': None if args.model_type == 'xlm' else batch[2]})
             if args.model_type in ['xlnet', 'xlm']:
                 inputs.update({'cls_index': batch[5],
                                'p_mask':       batch[6]})
@@ -222,11 +216,9 @@ def evaluate(args, model, tokenizer, prefix=""):
         batch = tuple(t.to(args.device) for t in batch)
         with torch.no_grad():
             inputs = {'input_ids':      batch[0],
-                      'attention_mask': batch[1]
+                      'attention_mask': batch[1],
+                      'token_type_ids': None if args.model_type == 'xlm' else batch[2]  # XLM don't use segment_ids
                       }
-            if args.model_type != 'distil_bert':
-                # XLM don't use segment_ids
-                inputs.update({'token_type_ids': None if args.model_type == 'xlm' else batch[2]})
             example_indices = batch[3]
             if args.model_type in ['xlnet', 'xlm']:
                 inputs.update({'cls_index': batch[4],
