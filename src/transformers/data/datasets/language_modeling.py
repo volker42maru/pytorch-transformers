@@ -49,31 +49,43 @@ class TextDataset(Dataset):
             else:
                 logger.info(f"Creating features from dataset file at {directory}")
 
+                # todo TextDataset does not work with nlp right now!
+                def _tokenize_example(example):
+                    print(example)
+                    tok_example = tokenizer.tokenize("".join(example))
+                    tok_ids = tokenizer.convert_tokens_to_ids(tok_example)[:block_size]
+                    tok_ids = tokenizer.build_inputs_with_special_tokens(tok_ids)
+
+                    return {'input_ids': tok_ids}
+
                 self.examples = []
                 if NLP_PREFIX in file_path:
                     from nlp import load_dataset
                     dataset_prefix, dataset_name, column, split = file_path[len(NLP_PREFIX):].split('.')
-                    text = "".join(load_dataset(dataset_prefix, dataset_name, split=split)[column])
+                    dataset = load_dataset(dataset_prefix, dataset_name, split=split)
+                    self.examples = dataset.map(lambda ex: tokenizer(ex['text']), batched=True)
                 else:
                     with open(file_path, encoding="utf-8") as f:
                         text = f.read()
 
-                tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+                    tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
 
-                for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
-                    self.examples.append(
-                        tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size])
+                    for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
+                        self.examples.append(
+                            tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size])
+                        )
+                    # Note that we are losing the last truncated example here for the sake of simplicity (no padding)
+                    # If your dataset is small, first you should loook for a bigger one :-) and second you
+                    # can change this behavior by adding (model specific) padding.
+
+                    print(self.examples[:10])
+
+                    start = time.time()
+                    with open(cached_features_file, "wb") as handle:
+                        pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    logger.info(
+                        "Saving features into cached file %s [took %.3f s]", cached_features_file, time.time() - start
                     )
-                # Note that we are losing the last truncated example here for the sake of simplicity (no padding)
-                # If your dataset is small, first you should loook for a bigger one :-) and second you
-                # can change this behavior by adding (model specific) padding.
-
-                start = time.time()
-                with open(cached_features_file, "wb") as handle:
-                    pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
-                logger.info(
-                    "Saving features into cached file %s [took %.3f s]", cached_features_file, time.time() - start
-                )
 
     def __len__(self):
         return len(self.examples)

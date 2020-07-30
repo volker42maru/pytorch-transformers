@@ -81,6 +81,8 @@ class DataCollatorForLanguageModeling:
     def __call__(self, examples: List[Union[torch.Tensor, Dict[str, torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         if isinstance(examples[0], (dict, BatchEncoding)):
             examples = [e["input_ids"] for e in examples]
+        if not isinstance(examples[0], torch.Tensor):
+            examples = [torch.tensor(e, dtype=torch.long) for e in examples]
         batch = self._tensorize_batch(examples)
         if self.mlm:
             inputs, labels = self.mask_tokens(batch)

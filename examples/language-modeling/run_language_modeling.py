@@ -127,7 +127,32 @@ class DataTrainingArguments:
 
 def get_dataset(args: DataTrainingArguments, tokenizer: PreTrainedTokenizer, evaluate=False):
     file_path = args.eval_data_file if evaluate else args.train_data_file
-    if args.line_by_line:
+    NLP_PREFIX = 'nlp.'
+    if NLP_PREFIX in file_path:
+        from nlp import load_dataset
+        dataset_prefix, dataset_name, column, split = file_path[len(NLP_PREFIX):].split('.')
+        dataset = load_dataset(dataset_prefix, dataset_name, split=split)
+        block_size = args.block_size - tokenizer.num_special_tokens_to_add(pair=False)
+        # todo use shard for TextDataset once it's supported in nlp release
+        # dataset_len = sum(len(ex) for ex in dataset['text'])
+        # num_shards = int(dataset_len / block_size)
+        # dataset = dataset.shard(num_shards)
+        # filter empty lines
+        dataset = dataset.filter(lambda ex: len(ex['text']) > 0)
+
+        def _tokenize_example(example):
+            batch_tok_ids = []
+            for e in example['text']:
+                tok_example = tokenizer.tokenize(e)
+                tok_ids = tokenizer.convert_tokens_to_ids(tok_example)[:block_size]
+                tok_ids = tokenizer.build_inputs_with_special_tokens(tok_ids)
+                batch_tok_ids.append(tok_ids)
+
+            return {'input_ids': batch_tok_ids}
+
+        # dataset = dataset.map(lambda ex: _tokenize_example(ex['text']), batched=False)
+        return dataset.map(_tokenize_example, batched=True)
+    elif args.line_by_line:
         return LineByLineTextDataset(tokenizer=tokenizer, file_path=file_path, block_size=args.block_size)
     else:
         return TextDataset(
@@ -193,9 +218,9 @@ def main():
         logger.warning("You are instantiating a new config instance from scratch.")
 
     if model_args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, cache_dir=model_args.cache_dir)
+        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, cache_dir=model_args.cache_dir, use_fast=True)
     elif model_args.model_name_or_path:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, cache_dir=model_args.cache_dir)
+        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, cache_dir=model_args.cache_dir, use_fast=True)
     else:
         raise ValueError(
             "You are instantiating a new tokenizer from scratch. This is not supported, but you can do it from another script, save it,"
